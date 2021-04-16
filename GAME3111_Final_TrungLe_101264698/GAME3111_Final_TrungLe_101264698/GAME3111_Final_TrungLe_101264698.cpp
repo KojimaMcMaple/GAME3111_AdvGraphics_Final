@@ -198,6 +198,12 @@ private:
 
     Camera mCamera;
     float cam_check_dist_ = 0.0f; //dist between cam & obj, will be modified by intersect
+    const float kHitDist = 7.0f; //dist considered collided
+    bool can_move_w_ = true;
+    bool can_move_s_ = true;
+    bool can_move_a_ = true;
+    bool can_move_d_ = true;
+    const float kCamMoveSpeed = 25.0f;
 
     POINT mLastMousePos;
 
@@ -938,7 +944,8 @@ bool ShapesApp::Initialize()
     // so we have to query this information.
     mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     
-    mCamera.SetPosition(0.0f, 2.0f, -50.0f);
+    mCamera.SetPosition(0.0f, 50.0f, -200.0f);
+    mCamera.Pitch(0.0f);
 
     mWaves = std::make_unique<Waves>(240, 240, 1.0f, 0.03f, 4.0f, 0.2f);
 
@@ -1141,53 +1148,99 @@ void ShapesApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 void ShapesApp::OnKeyboardInput(const GameTimer& gt)
 {
+    can_move_w_ = true;
+    can_move_s_ = true;
+    can_move_a_ = true;
+    can_move_d_ = true;
+    
+    for (int i = 0; i < mRitemLayer[(int)RenderLayer::Opaque].size(); i++)
+    {
+        if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(), mCamera.GetLook(), cam_check_dist_)) {
+            if (cam_check_dist_ < kHitDist) {
+                can_move_w_ = false;
+            }
+        }
+        if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(), -1.0f * mCamera.GetLook(), cam_check_dist_)) {
+            if (cam_check_dist_ < kHitDist) {
+                can_move_a_ = false;
+            }
+        }
+        if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(), -1.0f * mCamera.GetRight(), cam_check_dist_)) {
+            if (cam_check_dist_ < kHitDist) {
+                can_move_a_ = false;
+            }
+        }
+        if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(),  mCamera.GetRight(), cam_check_dist_)) {
+            if (cam_check_dist_ < kHitDist) {
+                can_move_d_ = false;
+            }
+        }
+    }
+    
     //step4: using camera class
     const float dt = gt.DeltaTime();
 
-    if (GetAsyncKeyState('W') & 0x8000)
-        mCamera.Walk(20.0f * dt);
+    if (GetAsyncKeyState('W') & 0x8000) {
+        if (can_move_w_) {
+            mCamera.Walk(kCamMoveSpeed * dt);
+        }      
+    }
 
-    if (GetAsyncKeyState('S') & 0x8000)
-        mCamera.Walk(-20.0f * dt);
+    if (GetAsyncKeyState('S') & 0x8000) {
+        if (can_move_s_) {
+            mCamera.Walk(-kCamMoveSpeed * dt);
+        }
+    }
+        
 
-    if (GetAsyncKeyState('A') & 0x8000)
-        mCamera.Strafe(-20.0f * dt);
+    if (GetAsyncKeyState('A') & 0x8000) {
+        if (can_move_a_) {
+            mCamera.Strafe(-kCamMoveSpeed * dt);
+        }
+    }
+       
 
-    if (GetAsyncKeyState('D') & 0x8000)
-        mCamera.Strafe(20.0f * dt);
+    if (GetAsyncKeyState('D') & 0x8000) {
+        if (can_move_d_) {
+            mCamera.Strafe(kCamMoveSpeed * dt);
+        }
+    }
+        
 
     mCamera.UpdateViewMatrix();
 
 
     
 
-    for (int i = 0; i < mRitemLayer[(int)RenderLayer::Opaque].size(); i++)
-    {
-        if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(), mCamera.GetLook(), cam_check_dist_)) {
-            if (cam_check_dist_ < 5.0f) { //HIT
-                /*std::wstring text2 =
-                    L"hit id = " + std::to_wstring(i) + L" " +
-                    L"\n";
-                ::OutputDebugString(text2.c_str());
+    //for (int i = 0; i < mRitemLayer[(int)RenderLayer::Opaque].size(); i++)
+    //{
+    //    if (mRitemLayer[(int)RenderLayer::Opaque][i]->Bounds.Intersects(mCamera.GetPosition(), mCamera.GetLook(), cam_check_dist_)) {
+    //        if (cam_check_dist_ < 5.0f) { //HIT
 
-                ::OutputDebugStringA(">>> mCamera.GetPosition3f() is...\n");
-                std::wstring text =
-                    L"X = " + std::to_wstring(mCamera.GetPosition3f().x) + L" " +
-                    L"Y = " + std::to_wstring(mCamera.GetPosition3f().y) + L" " +
-                    L"Z = " + std::to_wstring(mCamera.GetPosition3f().z) + L" " +
-                    L"\n";
-                ::OutputDebugString(text.c_str());
 
-                ::OutputDebugStringA(">>> mCamera.GetLook3f() is...\n");
-                std::wstring text1 =
-                    L"X = " + std::to_wstring(mCamera.GetLook3f().x) + L" " +
-                    L"Y = " + std::to_wstring(mCamera.GetLook3f().y) + L" " +
-                    L"Z = " + std::to_wstring(mCamera.GetLook3f().z) + L" " +
-                    L"\n";
-                ::OutputDebugString(text1.c_str());*/
-            }
-        }
-    }
+    //            /*std::wstring text2 =
+    //                L"hit id = " + std::to_wstring(i) + L" " +
+    //                L"\n";
+    //            ::OutputDebugString(text2.c_str());
+
+    //            ::OutputDebugStringA(">>> mCamera.GetPosition3f() is...\n");
+    //            std::wstring text =
+    //                L"X = " + std::to_wstring(mCamera.GetPosition3f().x) + L" " +
+    //                L"Y = " + std::to_wstring(mCamera.GetPosition3f().y) + L" " +
+    //                L"Z = " + std::to_wstring(mCamera.GetPosition3f().z) + L" " +
+    //                L"\n";
+    //            ::OutputDebugString(text.c_str());
+
+    //            ::OutputDebugStringA(">>> mCamera.GetLook3f() is...\n");
+    //            std::wstring text1 =
+    //                L"X = " + std::to_wstring(mCamera.GetLook3f().x) + L" " +
+    //                L"Y = " + std::to_wstring(mCamera.GetLook3f().y) + L" " +
+    //                L"Z = " + std::to_wstring(mCamera.GetLook3f().z) + L" " +
+    //                L"\n";
+    //            ::OutputDebugString(text1.c_str());*/
+    //        }
+    //    }
+    //}
 
     //for (auto& i: mRitemLayer[(int)RenderLayer::Opaque])
     //{
@@ -1607,6 +1660,20 @@ void ShapesApp::LoadTextures() //EDIT TEXTURES HERE
         mCommandList.Get(), brownTex->Filename.c_str(),
         brownTex->Resource, brownTex->UploadHeap));
 
+    auto floorsMedievalTex = std::make_unique<Texture>();
+    floorsMedievalTex->Name = "floorsMedievalTex";
+    floorsMedievalTex->Filename = L"../../Textures/TexturesCom_FloorsMedieval0063_1_seamless_S.dds";
+    ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+        mCommandList.Get(), floorsMedievalTex->Filename.c_str(),
+        floorsMedievalTex->Resource, floorsMedievalTex->UploadHeap));
+
+    auto hedgeTex = std::make_unique<Texture>();
+    hedgeTex->Name = "hedgeTex";
+    hedgeTex->Filename = L"../../Textures/TexturesCom_Hedges0060_1_seamless_S.dds";
+    ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+        mCommandList.Get(), hedgeTex->Filename.c_str(),
+        hedgeTex->Resource, hedgeTex->UploadHeap));
+
     auto waterTex = std::make_unique<Texture>();
     waterTex->Name = "waterTex";
     waterTex->Filename = L"../../Textures/water3.dds";
@@ -1641,6 +1708,7 @@ void ShapesApp::LoadTextures() //EDIT TEXTURES HERE
     ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
         mCommandList.Get(), wyvernArrayTex->Filename.c_str(),
         wyvernArrayTex->Resource, wyvernArrayTex->UploadHeap));
+    
 
 
 
@@ -1661,11 +1729,14 @@ void ShapesApp::LoadTextures() //EDIT TEXTURES HERE
     mTextures[cyanTex->Name] = std::move(cyanTex);
     mTextures[navyTex->Name] = std::move(navyTex);
     mTextures[brownTex->Name] = std::move(brownTex);
+    mTextures[floorsMedievalTex->Name] = std::move(floorsMedievalTex);
+    mTextures[hedgeTex->Name] = std::move(hedgeTex);
     mTextures[waterTex->Name] = std::move(waterTex);
     mTextures[gateTex->Name] = std::move(gateTex);
     mTextures[treeArrayTex->Name] = std::move(treeArrayTex);
     mTextures[cloudArrayTex->Name] = std::move(cloudArrayTex);
     mTextures[wyvernArrayTex->Name] = std::move(wyvernArrayTex);
+    
 
 
     ::OutputDebugStringA(">>> LoadTextures DONE!\n");
@@ -1800,7 +1871,7 @@ void ShapesApp::BuildDescriptorHeaps()
     // Create the SRV heap.
     //
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-    srvHeapDesc.NumDescriptors = 22; //EDIT NUM OF DESCRIPTORS
+    srvHeapDesc.NumDescriptors = 24; //EDIT NUM OF DESCRIPTORS
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -1824,6 +1895,8 @@ void ShapesApp::BuildDescriptorHeaps()
     auto cyanTex = mTextures["cyanTex"]->Resource;
     auto navyTex = mTextures["navyTex"]->Resource;
     auto brownTex = mTextures["brownTex"]->Resource;
+    auto floorsMedievalTex = mTextures["floorsMedievalTex"]->Resource;
+    auto hedgeTex = mTextures["hedgeTex"]->Resource;
     auto waterTex = mTextures["waterTex"]->Resource;
     auto treeArrayTex = mTextures["treeArrayTex"]->Resource;
     auto cloudArrayTex = mTextures["cloudArrayTex"]->Resource;
@@ -1907,6 +1980,16 @@ void ShapesApp::BuildDescriptorHeaps()
     srvDesc.Format = brownTex->GetDesc().Format;
     srvDesc.Texture2D.MipLevels = brownTex->GetDesc().MipLevels;
     md3dDevice->CreateShaderResourceView(brownTex.Get(), &srvDesc, hDescriptor);
+    
+    hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+    srvDesc.Format = floorsMedievalTex->GetDesc().Format;
+    srvDesc.Texture2D.MipLevels = floorsMedievalTex->GetDesc().MipLevels;
+    md3dDevice->CreateShaderResourceView(floorsMedievalTex.Get(), &srvDesc, hDescriptor);
+    
+    hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+    srvDesc.Format = hedgeTex->GetDesc().Format;
+    srvDesc.Texture2D.MipLevels = hedgeTex->GetDesc().MipLevels;
+    md3dDevice->CreateShaderResourceView(hedgeTex.Get(), &srvDesc, hDescriptor);
 
     // next descriptor
     hDescriptor.Offset(1, mCbvSrvDescriptorSize);
@@ -2106,7 +2189,7 @@ void ShapesApp::BuildSkullGeometry()
 void ShapesApp::BuildLandGeometry()
 {
     GeometryGenerator geoGen;
-    GeometryGenerator::MeshData grid = geoGen.CreateGrid(300.0f, 300.0f, 50, 50);
+    GeometryGenerator::MeshData grid = geoGen.CreateGrid(800.0f, 800.0f, 200, 200);
 
     //
     // Extract the vertex elements we are interested and apply the height function to
@@ -2348,12 +2431,12 @@ void ShapesApp::BuildTreeSpritesGeometry()
         XMFLOAT2 Size;
     };
 
-    static const int treeCount = 16;
-    std::array<TreeSpriteVertex, 16> vertices;
+    static const int treeCount = 50;
+    std::array<TreeSpriteVertex, 50> vertices;
     for (UINT i = 0; i < treeCount; ++i)
     {
-        float x = MathHelper::RandF(-100.0f, 100.0f);
-        float z = MathHelper::RandF(-100.0f, 100.0f);
+        float x = MathHelper::RandF(-500.0f, 500.0f);
+        float z = MathHelper::RandF(-500.0f, 500.0f);
         float y = GetHillsHeight(x, z);
 
         // Move tree slightly above land height.
@@ -2363,10 +2446,43 @@ void ShapesApp::BuildTreeSpritesGeometry()
         vertices[i].Size = XMFLOAT2(30.0f, 35.0f);
     }
 
-    std::array<std::uint16_t, 16> indices =
+    std::array<std::uint16_t, 50> indices =
     {
         0, 1, 2, 3, 4, 5, 6, 7,
-        8, 9, 10, 11, 12, 13, 14, 15
+        8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
     };
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(TreeSpriteVertex);
@@ -2780,6 +2896,24 @@ void ShapesApp::BuildMaterials() //EDIT MATS HERE
     brown0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
     brown0->Roughness = 0.3f;
     mat_idx++;
+    
+    auto floors_medieval_mat = std::make_unique<Material>();
+    floors_medieval_mat->Name = "floors_medieval_mat";
+    floors_medieval_mat->MatCBIndex = mat_idx;
+    floors_medieval_mat->DiffuseSrvHeapIndex = mat_idx;
+    floors_medieval_mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    floors_medieval_mat->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
+    floors_medieval_mat->Roughness = 0.5f;
+    mat_idx++;
+    
+    auto hedge_mat = std::make_unique<Material>();
+    hedge_mat->Name = "hedge_mat";
+    hedge_mat->MatCBIndex = mat_idx;
+    hedge_mat->DiffuseSrvHeapIndex = mat_idx;
+    hedge_mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    hedge_mat->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+    hedge_mat->Roughness = 0.1f;
+    mat_idx++;
 
     // This is not a good water material definition, but we do not have all the rendering
     // tools we need (transparency, environment reflection), so we fake it for now.
@@ -2843,6 +2977,8 @@ void ShapesApp::BuildMaterials() //EDIT MATS HERE
     mMaterials["cyan0"] = std::move(cyan0);
     mMaterials["navy0"] = std::move(navy0);
     mMaterials["brown0"] = std::move(brown0);
+    mMaterials["floors_medieval_mat"] = std::move(floors_medieval_mat);
+    mMaterials["hedge_mat"] = std::move(hedge_mat);
     mMaterials["water"] = std::move(water);
     mMaterials["gate0"] = std::move(gate0);
     mMaterials["treeSprites"] = std::move(treeSprites);
@@ -2985,8 +3121,8 @@ void ShapesApp::BuildRenderItems()
     // waves
     auto wavesRitem = std::make_unique<RenderItem>();
     //wavesRitem->World = MathHelper::Identity4x4();
-    XMStoreFloat4x4(&wavesRitem->World, XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.0f, -10, 0));
-    XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5, 5, 1.0f));
+    XMStoreFloat4x4(&wavesRitem->World, XMMatrixScaling(10, 1, 10) * XMMatrixTranslation(0.0f, -5, 0));
+    XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(50, 50, 1.0f));
     wavesRitem->ObjCBIndex = index_cache;
     wavesRitem->Mat = mMaterials["water"].get();
     wavesRitem->Geo = mGeometries["waterGeo"].get();
@@ -3004,9 +3140,9 @@ void ShapesApp::BuildRenderItems()
     // HILLS
     auto gridRitem = std::make_unique<RenderItem>();
     XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.0f, -5, 0));
-    XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
+    XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(60.0f, 60.0f, 1.0f));
     gridRitem->ObjCBIndex = index_cache;
-    gridRitem->Mat = mMaterials["tile0"].get();
+    gridRitem->Mat = mMaterials["floors_medieval_mat"].get();
     gridRitem->Geo = mGeometries["landGeo"].get();
     gridRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
@@ -3223,19 +3359,21 @@ void ShapesApp::BuildRenderItems()
 
 
     // MAZE
-    
-    float scale_offset = 2.0f;
-    float move_offset = scale_offset * 0.5f; //spacing for castle walls
-    float wall_thickness = scale_offset * 0.3f;
+    float scale_offset = 30.0f; //how big the maze is
+    float move_offset = 0.5f * scale_offset; //offset to match hori & verti walls
+    float wall_thickness = 0.2f * scale_offset; //how thick the maze walls are
+    float maze_x_offset = -12.0f * scale_offset; //24 horizontal walls, shift to make castle in the middle
+    float maze_z_offset = -11.5f * scale_offset; //24 vertical walls, shift to make castle in the middle
+    float texture_scaling = 0.1f * scale_offset;
     for (int i = 0; i < kMazeHorizontalSize; i++) {
-        BuildOneRenderItem("box", "boxGeo", "inner0", XMMatrixScaling(1 * scale_offset, 1 * scale_offset, wall_thickness ),
-            XMMatrixTranslation(kMazeHorizontalCoords[i][0] * scale_offset + move_offset * scale_offset, kMazeHorizontalCoords[i][1], (-kMazeHorizontalCoords[i][2]) * scale_offset),
-            XMMatrixScaling(1, 1, wall_thickness), index_cache++);
+        BuildOneRenderItem("box", "boxGeo", "hedge_mat", XMMatrixScaling(1 * scale_offset, 1 * scale_offset, wall_thickness ),
+            XMMatrixTranslation(kMazeHorizontalCoords[i][0] * scale_offset + move_offset + maze_x_offset, kMazeHorizontalCoords[i][1], (-kMazeHorizontalCoords[i][2]) * scale_offset + maze_z_offset),
+            XMMatrixScaling(texture_scaling, texture_scaling, 1.0f), index_cache++);
     }
     for (int i = 0; i < kMazeVerticalSize; i++) {
-        BuildOneRenderItem("box", "boxGeo", "inner0", XMMatrixScaling(wall_thickness , 1 * scale_offset, 1 * scale_offset),
-            XMMatrixTranslation((kMazeVerticalCoords[i][0]) * scale_offset, kMazeVerticalCoords[i][1], -kMazeVerticalCoords[i][2] * scale_offset + move_offset * scale_offset),
-            XMMatrixScaling(wall_thickness, 1, 1), index_cache++);
+        BuildOneRenderItem("box", "boxGeo", "hedge_mat", XMMatrixScaling(wall_thickness , 1 * scale_offset, 1 * scale_offset),
+            XMMatrixTranslation((kMazeVerticalCoords[i][0]) * scale_offset + maze_x_offset, kMazeVerticalCoords[i][1], -kMazeVerticalCoords[i][2] * scale_offset + move_offset + maze_z_offset),
+            XMMatrixScaling(texture_scaling, texture_scaling, 1.0f), index_cache++);
     }
 
 
@@ -3418,7 +3556,7 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> ShapesApp::GetStaticSamplers()
 
 float ShapesApp::GetHillsHeight(float x, float z)const
 {
-    return 0.15f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
+    return 0.01f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
 }
 
 XMFLOAT3 ShapesApp::GetHillsNormal(float x, float z)const
